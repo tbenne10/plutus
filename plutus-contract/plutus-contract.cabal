@@ -83,6 +83,7 @@ library
         Wallet.Graph
         Wallet.Types
         Plutus.Trace
+        Plutus.Trace.Effects.Assert
         Plutus.Trace.Effects.ContractInstanceId
         Plutus.Trace.Effects.RunContract
         Plutus.Trace.Effects.RunContractPlayground
@@ -151,9 +152,6 @@ library
         uuid -any,
         IntervalMap -any,
         QuickCheck -any,
-
-    if !(impl(ghcjs) || os(ghcjs))
-        build-depends: plutus-tx-plugin -any
 
     if flag(defer-plugin-errors)
         ghc-options: -fplugin-opt PlutusTx.Plugin:defer-errors
