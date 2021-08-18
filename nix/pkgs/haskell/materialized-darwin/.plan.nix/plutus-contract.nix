@@ -32,7 +32,7 @@
       };
     components = {
       "library" = {
-        depends = ([
+        depends = [
           (hsPkgs."plutus-chain-index" or (errorHandler.buildDepError "plutus-chain-index"))
           (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
           (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
@@ -62,13 +62,11 @@
           (hsPkgs."lens" or (errorHandler.buildDepError "lens"))
           (hsPkgs."memory" or (errorHandler.buildDepError "memory"))
           (hsPkgs."mmorph" or (errorHandler.buildDepError "mmorph"))
-          (hsPkgs."monad-control" or (errorHandler.buildDepError "monad-control"))
           (hsPkgs."mtl" or (errorHandler.buildDepError "mtl"))
           (hsPkgs."newtype-generics" or (errorHandler.buildDepError "newtype-generics"))
           (hsPkgs."prettyprinter" or (errorHandler.buildDepError "prettyprinter"))
           (hsPkgs."profunctors" or (errorHandler.buildDepError "profunctors"))
           (hsPkgs."quickcheck-dynamic" or (errorHandler.buildDepError "quickcheck-dynamic"))
-          (hsPkgs."random" or (errorHandler.buildDepError "random"))
           (hsPkgs."row-types" or (errorHandler.buildDepError "row-types"))
           (hsPkgs."semigroupoids" or (errorHandler.buildDepError "semigroupoids"))
           (hsPkgs."semigroups" or (errorHandler.buildDepError "semigroups"))
@@ -82,7 +80,7 @@
           (hsPkgs."uuid" or (errorHandler.buildDepError "uuid"))
           (hsPkgs."IntervalMap" or (errorHandler.buildDepError "IntervalMap"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-          ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))) ++ (pkgs.lib).optionals (!(compiler.isGhcjs && true || system.isGhcjs || system.isWindows)) [
+          ] ++ (pkgs.lib).optionals (!(compiler.isGhcjs && true || system.isGhcjs || system.isWindows)) [
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
           (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
           (hsPkgs."tasty-golden" or (errorHandler.buildDepError "tasty-golden"))
@@ -134,6 +132,7 @@
           "Wallet/Graph"
           "Wallet/Types"
           "Plutus/Trace"
+          "Plutus/Trace/Effects/Assert"
           "Plutus/Trace/Effects/ContractInstanceId"
           "Plutus/Trace/Effects/RunContract"
           "Plutus/Trace/Effects/RunContractPlayground"
@@ -192,4 +191,6 @@
           };
         };
       };
-    } // rec { src = (pkgs.lib).mkDefault ../plutus-contract; }
+    } // rec {
+    src = (pkgs.lib).mkDefault ../../../../private/tmp/nix-build-haskell-project-plan-to-nix-pkgs.drv-0/tmp.tg02dF13ew/plutus-contract;
+    }
