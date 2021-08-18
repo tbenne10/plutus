@@ -235,11 +235,9 @@ tests =
         , let theContract :: Contract () Schema ContractError () = void $ awaitSlot 10
               emTrace = do
                 void $ Trace.assert "Always fails" $ const False
-                void $ activateContract (Wallet 1) theContract tag
-                void $ Trace.assert "Always fails" $ const False
+                void $ activateContract w1 theContract tag
                 void $ Trace.waitNSlots 10
-                void $ Trace.assert "Always fails" $ const True
-          in checkEmulatorFails "assert throws error" defaultCheckOptions (waitingForSlot theContract tag 10) emTrace
+          in checkEmulatorFails "assert throws error" (defaultCheckOptions & maxSlot .~ 1) (waitingForSlot theContract tag 10) emTrace
         ]
 
 w1 :: EM.Wallet

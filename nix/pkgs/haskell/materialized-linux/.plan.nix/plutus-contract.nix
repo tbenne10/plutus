@@ -32,7 +32,7 @@
       };
     components = {
       "library" = {
-        depends = [
+        depends = ([
           (hsPkgs."plutus-chain-index" or (errorHandler.buildDepError "plutus-chain-index"))
           (hsPkgs."plutus-core" or (errorHandler.buildDepError "plutus-core"))
           (hsPkgs."plutus-ledger" or (errorHandler.buildDepError "plutus-ledger"))
@@ -80,7 +80,7 @@
           (hsPkgs."uuid" or (errorHandler.buildDepError "uuid"))
           (hsPkgs."IntervalMap" or (errorHandler.buildDepError "IntervalMap"))
           (hsPkgs."QuickCheck" or (errorHandler.buildDepError "QuickCheck"))
-          ] ++ (pkgs.lib).optionals (!(compiler.isGhcjs && true || system.isGhcjs || system.isWindows)) [
+          ] ++ (pkgs.lib).optional (!(compiler.isGhcjs && true || system.isGhcjs)) (hsPkgs."plutus-tx-plugin" or (errorHandler.buildDepError "plutus-tx-plugin"))) ++ (pkgs.lib).optionals (!(compiler.isGhcjs && true || system.isGhcjs || system.isWindows)) [
           (hsPkgs."tasty" or (errorHandler.buildDepError "tasty"))
           (hsPkgs."tasty-hunit" or (errorHandler.buildDepError "tasty-hunit"))
           (hsPkgs."tasty-golden" or (errorHandler.buildDepError "tasty-golden"))
@@ -192,5 +192,5 @@
         };
       };
     } // rec {
-    src = (pkgs.lib).mkDefault ../../../../private/tmp/nix-build-haskell-project-plan-to-nix-pkgs.drv-0/tmp.uPM1fIXFXJ/plutus-contract;
+    src = (pkgs.lib).mkDefault ../../../../private/tmp/nix-build-haskell-project-plan-to-nix-pkgs.drv-0/tmp.7zwlTZ7BsH/plutus-contract;
     }
