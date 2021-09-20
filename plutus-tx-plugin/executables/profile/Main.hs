@@ -13,7 +13,7 @@
 
 module Main where
 import           Common
-import           PlcTestUtils              (ToUPlc (toUPlc), rethrow, runUPlcProfile)
+import           PlcTestUtils              (ToUPlc (toUPlc), rethrow, runUPlcProfileExec)
 import           Plugin.Basic.Spec
 
 import qualified PlutusTx.Builtins         as Builtins
@@ -92,11 +92,27 @@ writeLogToFile ::
   [a] ->
   IO ()
 writeLogToFile fileName values = do
-  log <- pretty . view _2 <$> (rethrow $ runUPlcProfile values)
+  let filePath = "plutus-tx-plugin/executables/profile/"<>fileName
+  log <- pretty . view _2 <$> (rethrow $ runUPlcProfileExec values)
   withFile
-    ("plutus-tx-plugin/executables/profile/"<>fileName)
+    filePath
     WriteMode
     (\h -> hPutDoc h log)
+  processed <- processLog filePath
+  -- TODO
+  -- writeFile (filePath<>".stacks") processed
+  pure ()
+
+processLog :: FilePath -> IO [[String]]
+processLog file = do
+  content <- readFile file
+  pure $
+    map
+      -- @tail@ strips "[" in the first line and "," in the other lines,
+      -- @words@ turns it to a list of [time, enter/exit, var]
+      (tail . words)
+      -- turn to a list of events
+      (lines content)
 
 main :: IO ()
 main = do
@@ -108,5 +124,6 @@ main = do
   writeLogToFile "letInFunMoreArg" [toUPlc letInFunMoreArgTest, toUPlc $ plc (Proxy @"1") (1::Integer), toUPlc $ plc (Proxy @"4") (4::Integer), toUPlc $ plc (Proxy @"5") (5::Integer)]
   writeLogToFile "id" [toUPlc idTest]
   writeLogToFile "swap" [toUPlc swapTest]
+
 
 
