@@ -24,6 +24,7 @@ import qualified PlutusCore.Default        as PLC
 
 import           Control.Lens.Combinators  (_2)
 import           Control.Lens.Getter       (view)
+import           Data.List                 (stripPrefix, uncons)
 import           Data.Proxy                (Proxy (Proxy))
 import           Data.Text                 (Text)
 import           Prettyprinter.Internal    (pretty)
@@ -98,21 +99,25 @@ writeLogToFile fileName values = do
     filePath
     WriteMode
     (\h -> hPutDoc h log)
-  processed <- processLog filePath
+  -- processed <- processLog filePath
   -- TODO
   -- writeFile (filePath<>".stacks") processed
   pure ()
 
-processLog :: FilePath -> IO [[String]]
+-- processLog :: FilePath -> IO [[String]]
 processLog file = do
   content <- readFile file
+  let lEvents =
+        map
+          -- @(take i items ++ drop (1 + i) items)@ drop "UTC]" from the list
+          -- @tail@ strips "[" in the first line and "," in the other lines,
+          -- @words@ turns it to a list of [time, enter/exit, var]
+          (tail . words)
+          -- turn to a list of events
+          (lines content)
   pure $
-    map
-      -- @tail@ strips "[" in the first line and "," in the other lines,
-      -- @words@ turns it to a list of [time, enter/exit, var]
-      (tail . words)
-      -- turn to a list of events
-      (lines content)
+    -- stripe “[“ and add “ UTC” to the time so I can use read instance of UTCTime
+    map (stripPrefix "[" . (++ " UTC") . head ) $take 1 lEvents ++ drop 2 lEvents
 
 main :: IO ()
 main = do
