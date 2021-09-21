@@ -134,7 +134,7 @@ representativeBindingUnique
     => NE.NonEmpty (Binding tyname name uni fun a) -> PLC.Unique
 representativeBindingUnique =
     -- Arbitrary: select the first unique from the representative binding
-    head . toListOf bindingIds . representativeBinding
+    first1Of bindingIds . representativeBinding
   where
     --  Arbitrary: a binding to be used as representative binding in MARKING the group of bindings.
     representativeBinding :: NE.NonEmpty (Binding tyname name uni fun a) -> Binding tyname name uni fun a
@@ -307,71 +307,85 @@ floatBackLets term fTable =
     goTop, go :: term -> m term
 
     -- after traversing the cleaned term, try to float the lets that are destined for top (global lets)
-    goTop = floatLam topUnique <=< go
+    goTop t = floatLam topUnique <*> go t
 
     go = \case
         -- lam/Lam anchor, increase depth
         LamAbs a n ty tBody -> local (+1) $
-            LamAbs a n ty <$> (floatLam (n^.PLC.theUnique) =<< go tBody)
+            LamAbs a n ty <$> (floatLam (n^.PLC.theUnique) <*> go tBody)
         -- lam/Lam anchor, increase depth
         TyAbs a n k tBody -> local (+1) $
-            TyAbs a n k <$> (floatLam (n^.PLC.theUnique) =<< go tBody)
+            TyAbs a n k <$> (floatLam (n^.PLC.theUnique) <*> go tBody)
         -- Unfloatable-let anchor, increase depth
         Let a r bs@(representativeBindingUnique -> letU) tIn -> local (+1) $
-            -- note that we do not touch the recursivity of an unfloatable-let
-            Let a r
-                <$> (floatRhs letU =<< traverseOf (traversed.bindingSubterms) go bs)
-                -- act the same as lam/Lam: float right inside
-                <*> (floatLam letU =<< go tIn)
+            -- try to float at the same let-group level if there are any floatable-rhs
+            floatRhs a r letU
+                -- descend to unfloatable rhs'es
+                <*> traverseOf (traversed.bindingSubterms) go bs
+                -- act the same as lam/Lam: try to float right inside the body/interm
+                <*> (floatLam letU
+                        -- descend to interm
+                        <*> go tIn)
 
         -- descend
         t                  -> t & termSubterms go
 
-    floatLam :: PLC.Unique -> term -> m term
-    floatLam lamU t = do
-        herePos <- asks $ \d -> Pos d lamU LamBody
-        -- make a brand new let-group comprised of all the floatable lets just inside the lam/Lam/letInTerm
-        floatAt herePos makeNewLet t
+    floatLam :: PLC.Unique -> m (term -> term)
+    floatLam = floatAt LamBody
+        -- if nothing found, then return the term w.o. adding a let
+        id
+        -- if found, make a brand new let-group with all the floatable lets
+        introNewLet
 
     floatRhs :: (binds~ NE.NonEmpty (Binding tyname name uni fun a))
-             => PLC.Unique -> binds -> m binds
-    floatRhs letU bs = do
-        herePos <- asks $ \d -> Pos d letU LetRhs
-        -- we don't know from which rhs the floatable-let(s) came from originally,
-        -- so we instead are going to "squeeze" *AT THE SAME LEVEL* the floatable-let bindings together with the unfloatable let-group's bindings
-        floatAt herePos squeezeBindings bs
+             => a -> Recursivity -> PLC.Unique -> m (binds -> term -> term)
+    floatRhs a r = floatAt LetRhs
+        -- if nothing found, then do not alter the old let group
+        (Let a r)
+        -- if found, "squeeze" with the unfloatable let's other bindings
+        (squeezeOldLet a r)
 
-    floatAt :: Pos -- ^ floating position
-            -> (NE.NonEmpty (BindingGrp tyname name uni fun a) -> c -> c) -- ^ floating strategy
-            -> c -- ^ term or bindings to float around
-            -> m c -- ^ the combined result
-    floatAt herePos floatFunc termOrBindings = do
+    floatAt :: PosType -- ^ the type of the unfloatable parent we try to float into
+            -> (c -> d) -- what to do if no floatables found
+            -> (NE.NonEmpty (BindingGrp tyname name uni fun a) -> c -> d) -- ^ floating strategy if floatables found
+            -> PLC.Unique -- ^ the parent unfloatable's unique
+            -> m (c -> d) -- ^ the combined result
+    floatAt posType fNotFound fFound uniq = do
+        herePos <- asks $ \d -> Pos d uniq posType
         -- is there something to be floated here?
         case MM.lookup herePos fTable of
-            -- nothing to float, just descend
-            Nothing -> pure termOrBindings
+            -- nothing found to float
+            Nothing -> pure fNotFound
             -- all the naked-lets to be floated here
             Just floatableGrps -> do
-                -- visit the rhs'es of these floated lets for any potential floatings as well
-                -- NOTE: we do not directly run `go(bgGroup)` because that would increase the depth,
+                -- descend to "floatable" rhs'es
+                -- NOTE: we do not directly run `go(floatableGroups)` because that would increase the depth,
                 -- and the floated lets are not anchors themselves; instead we run go on the floated-let bindings' subterms.
                 floatableGrps' <- floatableGrps & (traversed.bgBindings.traversed.bindingSubterms) go
                 -- apply the merging with the visit result. This is what floats them back to the pir.
-                pure $ floatFunc floatableGrps' termOrBindings
+                pure $ fFound floatableGrps'
 
 -- | Squeezes floatable lets' (naked lets) bindings next to the bindings of the "parent" unfloatable let, that floatable lets depends upon.
+-- We don't know from which rhs the floatable-let(s) came from originally,
+-- so we instead are going to "squeeze" *AT THE SAME LEVEL* the floatable-let bindings together with the unfloatable let-group's bindings
 -- See [Floating rhs-nested lets]
-squeezeBindings :: NE.NonEmpty (BindingGrp tyname name uni fun a) -- ^ the floatable lets
-                -> NE.NonEmpty (Binding tyname name uni fun a) -- ^ the bindings of the unfloatable let-group we want to squeeze into
-                -> NE.NonEmpty (Binding tyname name uni fun a) -- ^ the result "larger" bindings
-squeezeBindings floatableGrps unfloatableBindings =
-    -- TODO: we lose the annotations of the naked lets, fix with semigroup.
-    concatBindingGrps floatableGrps <> unfloatableBindings
+squeezeOldLet :: Semigroup a
+           => a
+           -> Recursivity
+           -> NE.NonEmpty (BindingGrp tyname name uni fun a) -- ^ the floatable lets
+           -> NE.NonEmpty (Binding tyname name uni fun a) -- ^ the bindings of the unfloatable let-group we want to squeeze into
+           -> (Term tyname name uni fun a -> Term tyname name uni fun a)
+squeezeOldLet a r floatableGrps unfloatableBindings =
+    Let (foldMap1 (^.bgAnn) floatableGrps <> a)
+        -- note that we do not touch the recursivity of the original unfloatable-let
+        r
+        (concatBindingGrps floatableGrps <> unfloatableBindings)
 
 -- | Create a brand-new letrec to group the floated lets.
-makeNewLet :: Semigroup a
-           => NE.NonEmpty (BindingGrp tyname name uni fun a) -> Term tyname name uni fun a -> Term tyname name uni fun a
-makeNewLet floatableGrps =
+introNewLet :: Semigroup a
+            => NE.NonEmpty (BindingGrp tyname name uni fun a)
+            -> (Term tyname name uni fun a -> Term tyname name uni fun a)
+introNewLet floatableGrps =
     -- fold the annotations together under semigroup
     Let (foldMap1 (^.bgAnn) floatableGrps)
         Rec -- needs to be rec because we don't do dependency resolution at this pass, See Note [LetRec splitting pass]
