@@ -104,7 +104,7 @@ writeLogToFile fileName values = do
     WriteMode
     (\h -> hPutDoc h log)
   processed <- processLog filePath
-  writeFile (filePath<>".stacks") $ show processed
+  writeFile (filePath<>".stacks") processed
   pure ()
 
 data Stacks
@@ -134,7 +134,11 @@ processLog file = do
       lVar = map (!! 4) lEvents
       lTripleTimeVar = zip3 (lUTC lTime) lEnterOrExit lVar
       stacks = getStacks [] lTripleTimeVar
-  pure $ map (intercalate "; " . fst) stacks
+      fnsStacks = map (intercalate "; " . fst) stacks
+      stacksFgFormat (hdf:tlf) (hdt:tlt)=
+        hdf<>" "<>show hdt<>"\n":stacksFgFormat tlf tlt
+      stacksFgFormat _ _ = []
+  pure $ concat $ stacksFgFormat fnsStacks (map snd stacks)
 
 lUTC :: [String] -> [UTCTime]
 lUTC = map (read :: String -> UTCTime)
