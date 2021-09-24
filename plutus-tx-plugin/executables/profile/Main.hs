@@ -30,6 +30,7 @@ import           Data.Maybe                (fromJust)
 import           Data.Proxy                (Proxy (Proxy))
 import           Data.Text                 (Text)
 import           Data.Time.Clock           (NominalDiffTime, UTCTime, diffUTCTime)
+import           Numeric                   (showFFloat)
 import           Prettyprinter.Internal    (pretty)
 import           Prettyprinter.Render.Text (hPutDoc)
 import           System.IO                 (IOMode (WriteMode), withFile)
@@ -138,7 +139,10 @@ processLog file = do
       stacksFgFormat (hdf:tlf) (hdt:tlt)=
         hdf<>" "<>show hdt<>"\n":stacksFgFormat tlf tlt
       stacksFgFormat _ _ = []
-  pure $ concat $ stacksFgFormat fnsStacks (map snd stacks)
+  pure $
+    concat $
+      reverse $
+        stacksFgFormat fnsStacks (map (flip (showFFloat Nothing) "" . snd) stacks)
 
 lUTC :: [String] -> [UTCTime]
 lUTC = map (read :: String -> UTCTime)
@@ -149,7 +153,7 @@ getStacks ::
   -- | the input log which is processed to a list of (UTCTime, entering/exiting, var name)
   [(UTCTime, String, String)] ->
   -- | a list of (fns it's in, var/function, the time spent on it)
-  [([String],NominalDiffTime)]
+  [([String],Double)]
 getStacks curStack (hd:tl) =
   case hd of
     (time, "entering", var) ->
@@ -171,7 +175,7 @@ getStacks curStack (hd:tl) =
           in
             -- time spent on this function is the total time spent
             -- minus the time spent on the functions it called.
-            (fnsEntered <> [var], duration - curTimeSpent):getStacks updatedStack tl
+            (fnsEntered <> [var], realToFrac (duration - curTimeSpent)::Double):getStacks updatedStack tl
         else error "getStacks: exiting a stack that is not on top of the stack."
     (_, what, _) -> error $
       show what <>
