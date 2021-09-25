@@ -4,6 +4,7 @@ module Marlowe.Market (contractTemplates) where
 -- meantime, this is a simple solution to get things up and running.
 import Examples.PureScript.ContractForDifferences as ContractForDifferences
 import Examples.PureScript.Escrow as Escrow
+import Examples.PureScript.VendorPassthrough as VendorPassthrough
 import Examples.PureScript.ZeroCouponBond as ZeroCouponBond
 import Marlowe.Extended.Metadata (ContractTemplate)
 
@@ -12,4 +13,5 @@ contractTemplates =
   [ Escrow.contractTemplate
   , ZeroCouponBond.contractTemplate
   , ContractForDifferences.contractTemplate
+  , VendorPassthrough.contractTemplate
   ]
