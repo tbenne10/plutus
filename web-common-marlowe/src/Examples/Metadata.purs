@@ -316,3 +316,58 @@ contractForDifferencesWithOracle =
           ]
       )
   }
+  
+vendorPassthrough :: MetaData
+vendorPassthrough =
+  { contractType: VendorPassthrough
+  , contractName: "Vendor Passthrough Management"
+  , contractShortDescription: "In this contract a _**lessor**_ wants to provide services to a _**lessee**_ utilizing resources from a _**vendor**_."
+  , contractLongDescription: "The _**lessor**_ holds the contract with the _**lessee**_ and handles payments between the two parties. If a _**vendor**_ provides a service to the _**lessee**_, the _**lessor**_ keeps a portion of the cost as a service fee. The _**lessor**_ then pays the remaining amount to the _**vendor**_ as a passthrough fee. In the case a refund is requested, the _**lessor**_ will transfer money back from the _**vendor**_ to the _**lessee**_."
+  , choiceInfo:
+      ( Map.fromFoldable
+          [ "Vendor performs service without issue"
+              /\ { choiceFormat: DefaultFormat
+                , choiceDescription: "Proceed to withdraw funds from the _**lessee**_, keep a service fee and pay the vendor the passthrough revenue."
+                }
+          , "Vendor performs service with dispute from lessee"
+              /\ { choiceFormat: DefaultFormat
+                , choiceDescription: "The _**lessor**_ holds payment from the _**lessee**_ and arbitrates the transfer."
+                }
+          , "Refund requested"
+              /\ { choiceFormat: DefaultFormat
+                , choiceDescription: "The _**vendor**_ agrees with the _**lessee**_ that the service was conducted improperly, money from the _*lessee**_ is transfered back."
+                }
+          , "Dispute Terminated"
+              /\ { choiceFormat: DefaultFormat
+                , choiceDescription: "The _**lessee**_ had no valid justification for a refund, so the transaction continues."
+                }
+          ]
+      )
+  , roleDescriptions:
+      ( Map.fromFoldable
+          [ "lessor" /\ "A middleman that provides services to a lessor."
+          , "lessee" /\ "Uses a service provides by a lessor for a fee"
+          , "vendor" /\ "Provides a service to the lessee through the lessor."
+          ]
+      )
+  , slotParameterDescriptions:
+      ( OMap.fromFoldable
+          [ "Lessee A/R timeout" /\ "If money not recieved, front the funds to the _**vendor**_ from the _**lessor**_."
+          , "Vendor -> Lessor A/R timeout" /\ "If _**vendor**_ does not pay, front funds from the _**lessor**_ to the _**lessee**_ in the case of a refund."
+          , "Lessor -> Lessee A/P timeout" /\ "If _**lessee**_ is not paid a refund, force payment"
+          , "Lessor -> Vendor A/P timeout" /\ "If _**vendor**_ is not paid, force payment."
+          ]
+      )
+  , valueParameterInfo:
+      ( OMap.fromFoldable
+          [ "servicePrice"
+              /\ { valueParameterFormat: lovelaceFormat
+                , valueParameterDescription: "The price of the service given by the vendor and charged to the lessee."
+                }
+            , "passthroughRevenue"
+              /\ { valueParameterFormat: lovelaceFormat
+                , valueParameterDescription: "The amount of money sent to the vendor after a service fee has been applied."
+                }
+          ]
+      )
+  }
